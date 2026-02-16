@@ -102,6 +102,8 @@ Este proyecto fue desarrollado en el marco del Hackathon 2026 ADL - NODO.
 
 Integrantes : 
 Gabriela Coronel (backend-automatizaciones-integraciones)
+
 pedro contreras (visualizacion)
+
 occe Javiera Gonzalez (Data product) 
 
