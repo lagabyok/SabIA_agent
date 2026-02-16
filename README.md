@@ -100,10 +100,11 @@ Además, dejé preparada la capa opcional de IA (**OpenAI / Gemini**) para gener
 
 Este proyecto fue desarrollado en el marco del Hackathon 2026 ADL - NODO.
 
-Integrantes : 
-Gabriela Coronel (backend-automatizaciones-integraciones)
 
-pedro contreras (visualizacion)
+## 👥 Integrantes
 
-occe Javiera Gonzalez (Data product) 
+- **Gabriela Coronel** (Backend · Automatizaciones · Integraciones)
+- **Pedro Contreras** (Visualización)
+- **Javiera Gonzalez** (Data Product)
+
 
