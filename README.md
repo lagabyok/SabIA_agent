@@ -58,12 +58,16 @@ CSV → Costos → KPIs → Alertas → (IA) → Output JSON → Streamlit
 ```bash
 uvicorn app.main:app --reload --port 8000
 Run pipeline:
+curl -X POST http://localhost:8000/run \
+  -H "Content-Type: application/json" \
+  -d '{"periodo":"2026-02","llm":null}'
 
-POST /run
-{ "periodo": "2026-02", "llm": null }
 Ver resultados:
 
-GET /runs/latest
+curl http://localhost:8000/runs/latest
+```
+
+
 🏁 Éxito Hackathon
 ✔ Identifica productos problemáticos
 ✔ Explica el origen del problema
@@ -73,4 +77,31 @@ GET /runs/latest
 SabIA convierte:
 
 Datos dispersos → Diagnóstico claro → Acción concreta
+
+
+## 👩‍💻 Backend & Automatizaciones (Mi aporte)
+
+Diseñé e implementé el backend y las automatizaciones del copiloto **SabIA**, incluyendo:
+
+- Ingestión y validación de datasets operativos (CSV)
+- Motor de cálculo de costos reales (insumos, indirectos y esfuerzo)
+- Cálculo de KPIs clave de rentabilidad y eficiencia
+- Motor de alertas explicables con evidencia numérica y drivers de costo
+- Persistencia de resultados por corrida (`run_id`) y período
+- API REST lista para consumo desde la interfaz en **Streamlit**
+
+Además, dejé preparada la capa opcional de IA (**OpenAI / Gemini**) para generar reportes ejecutivos y recomendaciones en lenguaje natural, sin afectar el cálculo determinístico ni la trazabilidad del sistema.
+
+---
+
+## 📄 Copyright
+
+© 2026 Gabriela Coronel. Todos los derechos reservados sobre el diseño técnico, arquitectura, automatizaciones y desarrollo del backend del copiloto SabIA descritos anteriormente.
+
+Este proyecto fue desarrollado en el marco del Hackathon 2026 ADL - NODO.
+
+Integrantes : 
+Gabriela Coronel (backend-automatizaciones-integraciones)
+pedro contreras (visualizacion)
+occe Javiera Gonzalez (Data product) 
 
