@@ -1,6 +1,7 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
 import pandas as pd
+import logging
 
 from app.ingest.loaders import load_csvs
 from app.compute.costs import compute_costs
@@ -8,6 +9,8 @@ from app.compute.metrics import compute_metrics
 from app.rules.engine import build_alerts
 from app.explain.explainer import attach_evidence
 from app.storage.db import save_run
+
+logger = logging.getLogger(__name__)
 
 def _period_filter(ventas: pd.DataFrame, periodo: str) -> pd.DataFrame:
     # periodo "YYYY-MM" (demo simple)
@@ -56,7 +59,17 @@ def run_all(
 
     executive_md = None
     if llm_provider is not None:
-        executive_md = llm_provider.generate_executive_report(payload)
+        logger.info(f"Llamando al LLM provider: {type(llm_provider).__name__}")
+        logger.info(f"Payload contiene {len(alerts)} alertas")
+        try:
+            executive_md = llm_provider.generate_executive_report(payload)
+            logger.info(f"LLM respondió con {len(executive_md) if executive_md else 0} caracteres")
+        except Exception as e:
+            logger.error(f"Error al llamar al LLM: {type(e).__name__}: {str(e)}")
+            import traceback
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
+    else:
+        logger.info("No se proporcionó LLM provider")
 
     run_id = datetime.utcnow().isoformat() + "Z"
     output = {
