@@ -1,0 +1,9 @@
+servicio,horas_produccion,herramientas_especiales,dificultad
+Cambio aceite y filtro,0.5,No,Fácil
+Reparación motor,4.5,Si,Muy difícil
+Alineación dirección,1.5,Si,Medio
+Cambio pastillas freno,1.0,No,Fácil
+Reparación transmisión,3.5,Si,Muy difícil
+Electrical diagnostics,1.2,Si,Medio
+Cambio correas,1.8,No,Medio
+Inspection completa,0.8,No,Fácil

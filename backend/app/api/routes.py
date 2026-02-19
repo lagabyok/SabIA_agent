@@ -8,6 +8,7 @@ from app.storage.db import get_latest_run, list_runs, get_run
 from app.jobs.pipeline import run_all
 from app.llm.openai_provider import OpenAIProvider
 from app.llm.gemini_provider import GeminiProvider
+from app.demo.demo_routes import demo_router
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

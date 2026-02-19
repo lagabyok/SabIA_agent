@@ -1,0 +1,13 @@
+servicio_id,nombre_servicio,tarifa_mensual,horas_estimadas,costo_hora
+S01,Email marketing,4000,8,400
+S02,Consultoría SEO,8000,15,450
+S03,Diseño + contenido mensual,12000,40,300
+S04,Community management,6500,20,325
+S05,Campaña Ads + optimización,10000,18,500
+S06,Gestión de comunidades,6500,25,260
+S07,Estrategia digital,15000,35,520
+S08,Capacitación en redes,5000,20,250
+S09,Email campaigns,5500,12,400
+S10,Landing page + SEO,8000,25,300
+S11,Gestión de redes premium,22500,45,595
+S12,Consultoría 1 a 1,3000,6,400
