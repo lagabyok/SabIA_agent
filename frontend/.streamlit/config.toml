@@ -1,0 +1,12 @@
+[theme]
+# Fondo principal en gris azulado medio (neutral y elegante)
+backgroundColor = "#DBD3C6"
+# Texto principal en blanco hueso suave
+textColor = "#1584a0"
+# Color primario en coral quemado (cálido pero sofisticado)
+primaryColor = "#e67e6b"
+# Color secundario de fondo en azul pizarra profundo
+secondaryBackgroundColor = "#1e2b38"
+# Fuente base moderna
+
+font = "sans serif"

@@ -2,25 +2,331 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-
+import os
+from pathlib import Path
+import base64
 st.set_page_config(page_title="SabIA - Copiloto Inteligente", layout="wide", initial_sidebar_state="collapsed")
+
+CHART_COLORS = {
+    "positive": "#2A9D8F",
+    "negative": "#E76F51",
+    "accent": "#667eea",
+    "bar_light": "#8ECAE6",
+    "bar_mid": "#5AA9E6",
+    "bar_dark": "#1C4A72",
+}
+
+
+def style_plotly(fig):
+    fig.update_layout(
+        template="plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#061326", size=12),
+        margin=dict(l=20, r=20, t=60, b=20),
+    )
+    return fig
+
+
+def render_sabi_table(df: pd.DataFrame, table_class: str = "", escape_html: bool = True):
+    classes = "sabi-table" if not table_class else f"sabi-table {table_class}"
+    st.markdown(
+        f'<div class="sabi-table-wrap">{df.to_html(index=False, classes=classes, border=0, escape=escape_html)}</div>',
+        unsafe_allow_html=True,
+    )
 
 # CSS minimalista
 st.markdown("""
     <style>
+    :root {
+        /* ===== Tema de tablas ===== */
+        --sabi-text: #061326;
+        /* Fondo cabecera (primera fila) */
+        --table-header-bg: #B8B68F;
+        /* Borde principal de cabecera */
+        --table-header-border: #4F4E34;
+        /* Línea inferior de cabecera para contraste */
+        --table-header-bottom: #3F3E2A;
+        /* Fondo del cuerpo de tabla */
+        --table-body-bg: #eef3fa;
+        /* Bordes de celdas */
+        --table-cell-border: #6f8fb3;
+    }
+    html {
+        font-size: clamp(15px, 1vw + 10px, 18px) !important;
+    }
     body, .stApp {
         font-family: "Segoe UI", Arial, sans-serif;
-        font-size: 18px;
+        font-size: clamp(15px, 0.8vw + 11px, 18px);
+        color: var(--sabi-text) !important;
+        line-height: 1.5;
+    }
+    .stApp *:not(svg):not(path) {
+        color: var(--sabi-text) !important;
+    }
+    .stApp {
+        font-size: 1rem !important;
+    }
+    h1, h2, h3 {
+        font-size: 1.3rem !important;
+        color: var(--sabi-text) !important;
+    }
+    h4, h5, h6 {
+        font-size: 1.15rem !important;
+        color: var(--sabi-text) !important;
+    }
+    [data-testid="stMarkdownContainer"] p,
+    [data-testid="stMarkdownContainer"] li,
+    [data-testid="stChatMessageContent"] p,
+    [data-testid="stMetricLabel"] div,
+    [data-testid="stMetricValue"] div,
+    [data-testid="stDataFrame"] div {
+        font-size: 1rem !important;
+    }
+    [data-testid="stAppViewContainer"] {
+        background-color: #B8B68F !important;
+        color: var(--sabi-text) !important;
+    }
+    [data-testid="stMain"],
+    [data-testid="stMainBlockContainer"],
+    section.main,
+    .main,
+    .block-container {
+        background-color: #EBE6D2  !important;
+        color: var(--sabi-text) !important;
+    }
+    [data-testid="stHeader"] {
+        background: #B8B68F !important;
+        min-height: 6.4rem !important;
+    }
+    [data-testid="stHeader"] > div {
+        min-height: 6.4rem !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #eaf0f7 !important;
+    }
+    p, li, label, .stMarkdown, .stCaption,
+    [data-testid="stCaptionContainer"],
+    [data-testid="stCaptionContainer"] * {
+        color: var(--sabi-text) !important;
+    }
+    [data-testid="stMetricLabel"], [data-testid="stMetricValue"] {
+        color: var(--sabi-text) !important;
+    }
+    [data-testid="stTextInput"] input,
+    textarea,
+    div[data-baseweb="select"] > div {
+        color: var(--sabi-text) !important;
+        background-color: #eaf0f7 !important;
+    }
+    [data-testid="stTextInput"] input::placeholder,
+    textarea::placeholder {
+        color: #51627a !important;
+    }
+    [data-testid="stAlertContainer"] {
+        background-color: #eaf0f7 !important;
+        border-color: #c7d4e6 !important;
+    }
+    [data-testid="stDataFrame"] {
+        background-color: var(--table-body-bg) !important;
+        border: 1px solid #35597a !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+    }
+    [data-testid="stDataFrame"] div[role="grid"],
+    [data-testid="stDataFrame"] div[role="table"] {
+        border: 1px solid #35597a !important;
+        border-radius: 6px !important;
+    }
+    [data-testid="stDataFrame"] div[role="columnheader"],
+    [data-testid="stDataFrame"] div[role="gridcell"],
+    [data-testid="stDataFrame"] div[role="rowheader"] {
+        box-shadow: inset 0 0 0 1px #6f8fb3 !important;
+        color: var(--sabi-text) !important;
+        font-size: 0.9rem !important;
+    }
+    [data-testid="stDataFrame"] table,
+    [data-testid="stTable"] table,
+    .stTable table {
+        border-collapse: collapse !important;
+        border-spacing: 0 !important;
+        border: 2px solid #35597a !important;
+    }
+    [data-testid="stDataFrame"] thead th,
+    [data-testid="stDataFrame"] tbody td,
+    [data-testid="stTable"] thead th,
+    [data-testid="stTable"] tbody td,
+    .stTable thead th,
+    .stTable tbody td {
+        border: 1px solid var(--table-cell-border) !important;
+        color: #061326 !important;
+        font-size: 0.88rem !important;
+    }
+    [data-testid="stDataFrame"] thead th,
+    [data-testid="stTable"] thead th,
+    .stTable thead th {
+        background-color: var(--table-header-bg) !important;
+        color: #061326 !important;
+        font-size: 0.9rem !important;
+        font-weight: 800 !important;
+        border-color: var(--table-header-border) !important;
+        border-bottom: 2px solid var(--table-header-bottom) !important;
+    }
+    [data-testid="stTable"] {
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0 !important;
+        background: var(--table-body-bg) !important;
+    }
+    /* Refuerzo global para TODAS las tablas visibles (st.table y variantes) */
+    .stApp table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        border-spacing: 0 !important;
+        border: 1px solid #35597a !important;
+        background: var(--table-body-bg) !important;
+    }
+    .stApp table thead th,
+    .stApp table tbody td,
+    .stApp table tbody th {
+        border: 1px solid var(--table-cell-border) !important;
+        color: #061326 !important;
+        font-size: 0.88rem !important;
+    }
+    .stApp table thead th {
+        background: var(--table-header-bg) !important;
+        color: #061326 !important;
+        font-weight: 800 !important;
+        font-size: 0.9rem !important;
+        border-color: var(--table-header-border) !important;
+        border-bottom: 2px solid var(--table-header-bottom) !important;
+    }
+    .stApp table tbody td,
+    .stApp table tbody th {
+        background: var(--table-body-bg) !important;
+        color: #061326 !important;
+    }
+    /* Tabla HTML controlada para asegurar estilo final visible */
+    .sabi-table-wrap {
+        border: none;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        margin-bottom: 8px;
+    }
+    .sabi-table {
+        width: 100%;
+        min-width: 100% !important;
+        border-collapse: collapse;
+        border-spacing: 0;
+        background: var(--table-body-bg);
+        border: 1px solid #35597a !important;
+        table-layout: auto;
+    }
+    .sabi-table-muebles {
+        min-width: 720px !important;
+    }
+    .sabi-table-top5 {
+        min-width: 760px !important;
+    }
+    .sabi-table thead th,
+    .sabi-table th {
+        background: var(--table-header-bg) !important;
+        color: #061326 !important;
+        font-weight: 800;
+        font-size: clamp(0.8rem, 0.2vw + 0.72rem, 0.9rem) !important;
+        border: 1px solid var(--table-header-border) !important;
+        border-bottom: 2px solid var(--table-header-bottom) !important;
+        padding: 8px 10px;
+        text-align: left;
+    }
+    .sabi-table tbody td,
+    .sabi-table td {
+        background: var(--table-body-bg);
+        color: #061326 !important;
+        font-size: clamp(0.78rem, 0.2vw + 0.7rem, 0.88rem) !important;
+        font-weight: 600;
+        border: 1px solid var(--table-cell-border) !important;
+        padding: 8px 10px;
+        text-align: left;
+    }
+    .sabi-table th,
+    .sabi-table td {
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        vertical-align: top;
+    }
+    .sabi-table-top5 th,
+    .sabi-table-top5 td {
+        white-space: nowrap !important;
+        overflow-wrap: normal !important;
+        word-break: normal !important;
+    }
+    .sabi-table * {
+        color: #061326 !important;
+    }
+    .estado-pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        line-height: 1.2;
+        color: #061326 !important;
+    }
+    .estado-verde { background: #72E39A; }
+    .estado-amarillo { background: #FFD75E; }
+    .estado-rojo { background: #FF8A8A; }
+    .table-section-title {
+        font-size: clamp(0.9rem, 0.2vw + 0.8rem, 1rem) !important;
+        font-weight: 700 !important;
+        color: var(--sabi-text) !important;
+        margin: 0.15rem 0 0.45rem 0 !important;
+    }
+    /* Plotly: dejar menú de herramientas siempre visible */
+    .js-plotly-plot .plotly .modebar {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+    .js-plotly-plot .plotly .modebar-group {
+        opacity: 1 !important;
+    }
+    /* Streamlit: mantener visible el ícono de ampliar SOLO en Distribución de ganancias */
+    [data-testid="stElementContainer"]:has(.dist-ganancias-anchor)
+    + [data-testid="stElementContainer"] [data-testid="stElementToolbar"],
+    [data-testid="stElementContainer"]:has(.dist-ganancias-anchor)
+    + [data-testid="stElementContainer"] [data-testid="stElementToolbar"] * {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+    /* DataFrame renderizado como grid (no table): texto oscuro + cabecera clara */
+    [data-testid="stDataFrame"] div[role="columnheader"] {
+        background: var(--table-header-bg) !important;
+        color: #061326 !important;
+        font-size: 0.9rem !important;
+        font-weight: 800 !important;
+        box-shadow: inset 0 -2px 0 0 var(--table-header-bottom) !important;
+    }
+    [data-testid="stDataFrame"] div[role="gridcell"],
+    [data-testid="stDataFrame"] div[role="rowheader"] {
+        background: var(--table-body-bg) !important;
+        color: #061326 !important;
+        font-size: 0.86rem !important;
+        font-weight: 600 !important;
     }
     .header-logo {
         font-size: 2.5em;
         font-weight: bold;
-        color: #667eea;
+        color: var(--sabi-text);
         margin-bottom: 5px;
     }
     .header-subtitle {
         font-size: 0.9em;
-        color: #666;
+        color: var(--sabi-text);
     }
     .agent-button-section {
         background-color: #f8f9fa;
@@ -57,6 +363,333 @@ st.markdown("""
         background-color: #f0f0f0;
         font-weight: bold;
     }
+    .summary-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin: 8px 0 18px 0;
+    }
+    .summary-kpi-card {
+        background: #eaf0f7 !important;
+        border: 1px solid rgba(11, 31, 59, 0.2) !important;
+        border-left: 6px solid #9fb3c8;
+        border-radius: 12px;
+        padding: 10px 12px;
+    }
+    .summary-kpi-card.total {
+        background: #d9ecff !important;
+        border-color: #9fc7ed !important;
+        border-left-color: #4f8fc9 !important;
+    }
+    .summary-kpi-card.negativo {
+        background: #f3cfcf !important;
+        border-color: #dd8f8f !important;
+        border-left-color: #b44747 !important;
+    }
+    .summary-kpi-card.critico {
+        background: #ffe7c2 !important;
+        border-color: #d9ae62 !important;
+        border-left-color: #aa7623 !important;
+    }
+    .summary-kpi-title {
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: var(--sabi-text);
+        margin-bottom: 4px;
+    }
+    .summary-kpi-value {
+        font-size: 1.45rem;
+        font-weight: 900;
+        color: var(--sabi-text);
+        line-height: 1.1;
+        margin-bottom: 5px;
+    }
+    .summary-kpi-card.negativo .summary-kpi-value {
+        color: #872f2f !important;
+    }
+    .summary-kpi-card.critico .summary-kpi-value {
+        color: #7d5316 !important;
+    }
+    .summary-kpi-card.total .summary-kpi-value {
+        color: #356ea3 !important;
+    }
+    .summary-kpi-desc {
+        font-size: 0.79rem;
+        font-weight: 600;
+        color: var(--sabi-text);
+        line-height: 1.25;
+    }
+    
+    
+      /* Uploader como botón '+' sin drag&drop (Streamlit 1.36) */
+  div[data-testid="stFileUploader"],
+  div[data-testid="stFileUploader"] section {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* en algunos builds, el 'Browse files' queda dentro del section: recorta todo a 42x42 */
+  div[data-testid="stFileUploader"] section {
+    width: 42px !important;
+    height: 42px !important;
+    overflow: hidden !important;
+  }
+
+  /* fuerza un contenedor pequeño aunque la estructura interna cambie */
+  div[data-testid="stFileUploader"] section > div {
+    position: relative !important;
+    width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(11,31,59,0.25) !important;
+    background: #eaf0f7 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* oculta textos/íconos del uploader sin romper el click */
+  div[data-testid="stFileUploader"] svg,
+  div[data-testid="stFileUploader"] p,
+  div[data-testid="stFileUploader"] small,
+  div[data-testid="stFileUploader"] span {
+    display: none !important;
+  }
+
+  /* el botón/label debe ocupar todo el cuadrado y ser clickeable */
+  div[data-testid="stFileUploader"] label,
+  div[data-testid="stFileUploader"] button {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    cursor: pointer !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    z-index: 5 !important;
+  }
+
+  /* si existe un <input type=file>, mantenerlo por accesibilidad pero invisible */
+  div[data-testid="stFileUploader"] input[type="file"] {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 42px !important;
+    height: 42px !important;
+    opacity: 0 !important;
+    cursor: pointer !important;
+    z-index: 6 !important;
+  }
+
+  /* pintar el '+' SOBRE el botón real */
+  div[data-testid="stFileUploader"] button::before,
+  div[data-testid="stFileUploader"] label::before {
+    content: "+";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--sabi-text);
+    line-height: 1;
+    z-index: 1;
+  }
+
+  /* Ajustes para el input y el botón enviar */
+  div[data-testid="stTextInput"] input {
+    height: 42px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(11,31,59,0.20) !important;
+  }
+  button[kind="secondary"], button[kind="primary"] {
+    height: 42px !important;
+    border-radius: 12px !important;
+  }
+  
+  
+  .header-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0;
+    }
+    .sticky-brand {
+        position: fixed;
+        top: 0.72rem;
+        left: 0.85rem;
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        min-height: 5rem;
+        height: auto;
+        padding: 8px 16px;
+        border-radius: 10px;
+        background: rgba(184, 182, 143, 0.92);
+        overflow: visible;
+    }
+    .sticky-brand .header-logo-img {
+        display: block !important;
+        width: clamp(52px, 5.5vw, 80px) !important;
+        height: clamp(52px, 5.5vw, 80px) !important;
+        min-width: clamp(52px, 5.5vw, 80px) !important;
+        min-height: clamp(52px, 5.5vw, 80px) !important;
+        max-width: none !important;
+        max-height: none !important;
+        flex: 0 0 auto;
+        object-fit: contain;
+        transform: scale(1.45) !important;
+        transform-origin: center center;
+    }
+    .header-title {
+        font-size: clamp(44px, 4.8vw, 68px);
+        font-weight: bold;
+        margin: 0;
+        line-height: 1;
+    }
+
+    @media (max-width: 900px) {
+        [data-testid="stHeader"],
+        [data-testid="stHeader"] > div {
+            min-height: 5.6rem !important;
+        }
+        .header-container {
+            flex-wrap: nowrap;
+            gap: 6px;
+        }
+        .sticky-brand {
+            top: 0.52rem;
+            left: 0.65rem;
+            min-height: 4.3rem;
+            height: auto;
+            padding: 6px 12px;
+        }
+        .sticky-brand .header-logo-img {
+            width: clamp(46px, 5vw, 62px) !important;
+            height: clamp(46px, 5vw, 62px) !important;
+            min-width: clamp(46px, 5vw, 62px) !important;
+            min-height: clamp(46px, 5vw, 62px) !important;
+            transform: scale(1.48) !important;
+        }
+        .header-title {
+            font-size: clamp(38px, 4.2vw, 54px);
+        }
+        [data-testid="stMetricLabel"] div,
+        [data-testid="stMetricValue"] div {
+            font-size: 0.95rem !important;
+        }
+    }
+
+    @media (max-width: 640px) {
+        [data-testid="stHeader"],
+        [data-testid="stHeader"] > div {
+            min-height: 4.9rem !important;
+        }
+        html {
+            font-size: 15px !important;
+        }
+        body, .stApp {
+            font-size: 15px;
+        }
+        h1, h2, h3 {
+            font-size: 1.1rem !important;
+        }
+        h4, h5, h6 {
+            font-size: 1rem !important;
+        }
+        .sabi-table {
+            min-width: 100% !important;
+            table-layout: auto;
+        }
+        .sabi-table-muebles {
+            min-width: 680px !important;
+        }
+        .sabi-table-top5 {
+            min-width: 760px !important;
+        }
+        .sabi-table thead th,
+        .sabi-table tbody td {
+            font-size: 0.78rem !important;
+            padding: 7px 8px;
+        }
+        [data-testid="stDataFrame"] div[role="columnheader"] {
+            font-size: 0.82rem !important;
+        }
+        [data-testid="stDataFrame"] div[role="gridcell"],
+        [data-testid="stDataFrame"] div[role="rowheader"] {
+            font-size: 0.8rem !important;
+        }
+        [data-testid="stTextInput"] input,
+        button[kind="secondary"],
+        button[kind="primary"] {
+            height: 38px !important;
+        }
+        .summary-kpi-grid {
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        .summary-kpi-card {
+            padding: 9px 10px;
+        }
+        .summary-kpi-title {
+            font-size: 0.8rem;
+        }
+        .summary-kpi-value {
+            font-size: 1.25rem;
+        }
+        .summary-kpi-desc {
+            font-size: 0.76rem;
+        }
+        .sticky-brand {
+            top: 0.36rem;
+            left: 0.42rem;
+            min-height: 3.5rem;
+            height: auto;
+            padding: 5px 10px;
+        }
+        .sticky-brand .header-logo-img {
+            width: clamp(48px, 10vw, 52px) !important;
+            height: clamp(48px, 10vw, 52px) !important;
+            min-width: clamp(48px, 10vw, 52px) !important;
+            min-height: clamp(48px, 10vw, 52px) !important;
+            transform: scale(1.52) !important;
+        }
+        .header-title {
+            font-size: clamp(30px, 8vw, 42px);
+        }
+    }
+
+    @media (max-width: 430px) {
+        [data-testid="stHeader"],
+        [data-testid="stHeader"] > div {
+            min-height: 4.4rem !important;
+        }
+        .sticky-brand {
+            top: 0.3rem;
+            left: 0.35rem;
+            min-height: 3.05rem;
+            height: auto;
+            padding: 4px 8px;
+        }
+        .sticky-brand .header-logo-img {
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px !important;
+            min-height: 36px !important;
+            transform: scale(1.58) !important;
+        }
+        .header-title {
+            font-size: 28px;
+        }
+    }
+    
     </style>
 """, unsafe_allow_html=True)
 
@@ -536,12 +1169,36 @@ def detect_business(filenames: list) -> str:
         return "marketing"
     return "panaderia"
 
+def get_image_base64(path):
+    # Safely read and encode the image file
+    try:
+        with open(path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode('utf-8')
+    except FileNotFoundError:
+        # If the file is not found, we'll just not show the image.
+        return None
+
+# Construct the full path to the image
+logo_path = os.path.join(os.path.dirname(__file__), "static", "logo.png")
+logo_base64 = get_image_base64(logo_path)
 
 # Header
 col1, col2 = st.columns([3, 1])
 with col1:
-    st.markdown('<div class="header-logo">🤖 SabIA</div>', unsafe_allow_html=True)
-    st.markdown('<div class="header-subtitle">Copiloto inteligente para tu pyme</div>', unsafe_allow_html=True)
+    # Build the image tag only if the image was successfully loaded
+    image_html = ""
+    if logo_base64:
+        image_html = f'<img src="data:image/png;base64,{logo_base64}" class="header-logo-img">'
+    
+    # Use an f-string to dynamically insert the image tag into the markdown
+    st.markdown(f"""
+    <div class="sticky-brand">
+        <div class="header-container">
+            <span class="header-title">🤖</span>
+            {image_html}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Inicializar session state
 if "chat_history" not in st.session_state:
@@ -553,29 +1210,26 @@ if "last_report" not in st.session_state:
 if "current_business" not in st.session_state:
     st.session_state.current_business = None
 
-# Main layout
-col_chat, col_buttons = st.columns([2, 1], gap="medium")
+# Main layout - Full Width
+# The two-column layout has been removed to allow the content to span the full width of the page.
+st.subheader("💬 Chat con el Agente")
 
-# ===== LEFT: Chat Area =====
-with col_chat:
-    st.subheader("💬 Chat con el Agente")
+chat_container = st.container()
+with chat_container:
+    for msg in st.session_state.chat_history:
+        if msg["role"] == "user":
+            st.chat_message("user").write(msg["content"])
+        else:
+            st.chat_message("assistant").write(msg["content"])
 
-    chat_container = st.container()
-    with chat_container:
-        for msg in st.session_state.chat_history:
-            if msg["role"] == "user":
-                st.chat_message("user").write(msg["content"])
-            else:
-                st.chat_message("assistant").write(msg["content"])
+st.divider()
 
-    st.divider()
-
-    col_upload, col_info = st.columns([1, 2])
-    with col_upload:
-        st.markdown("**➕ Subir CSV**")
+col_upload, col_info = st.columns([1, 2])
+with col_upload:
+        st.markdown("**Sube los Archivos de tu Pyme**")
         uploaded_files = st.file_uploader(
-            "Sube tus archivos",
-            type="csv",
+            "Sube tus archivos de Excel o CSV",
+            type=["csv", "xlsx"],
             accept_multiple_files=True,
             label_visibility="collapsed"
         )
@@ -583,107 +1237,21 @@ with col_chat:
         if uploaded_files:
             st.session_state.uploaded_files = [f.name for f in uploaded_files]
 
-    with col_info:
+with col_info:
         if st.session_state.uploaded_files:
             st.caption("Archivos cargados: " + ", ".join(st.session_state.uploaded_files))
         else:
-            st.caption("Carga panaderia_productos.csv y panaderia_tiempos.csv (o mueble_...)")
+            st.caption("Sube tus archivos de 'productos' y 'tiempos' (Excel o CSV).")
+st.divider()
 
-    st.divider()
-
-    user_input = st.chat_input("Escribe tu pregunta...")
-    if user_input:
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        st.chat_message("user").write(user_input)
-
-        filenames = st.session_state.uploaded_files
-        
-        # Detectar panadería
-        has_productos = any("producto" in name.lower() for name in filenames)
-        has_tiempos = any("tiempo" in name.lower() for name in filenames)
-        
-        # Detectar marketing (cualquier combinación con "marketing")
-        has_marketing = any("marketing" in name.lower() for name in filenames)
-        
-        # Validar que tenga los archivos correctos
-        valid_panaderia = has_productos and has_tiempos
-        valid_marketing = has_marketing and len(filenames) >= 2
-        
-        if valid_panaderia or valid_marketing:
-            business = detect_business(filenames)
-            report = SIM_REPORTS[business]
-            st.session_state.last_report = report
-            st.session_state.current_business = business
-
-            respuesta = f"Reporte {business.upper()} generado. ✅"
-            st.session_state.chat_history.append({"role": "assistant", "content": respuesta})
-            st.chat_message("assistant").write(respuesta)
-        else:
-            respuesta = "Necesito 2 archivos: productos+tiempos (panadería) O 2 archivos marketing_* para generar el reporte."
-            st.session_state.chat_history.append({"role": "assistant", "content": respuesta})
-            st.chat_message("assistant").write(respuesta)
-
-    if st.session_state.last_report:
-        st.subheader("Reporte Ejecutivo")
-        st.markdown(st.session_state.last_report["executive_report"])
-
-        metrics = st.session_state.last_report["metrics"]
-        col_a, col_b, col_c = st.columns(3)
-        col_a.metric("Total productos", metrics["total_productos"])
-        col_b.metric("Margen negativo", metrics["margen_negativo"])
-        col_c.metric("Margen critico", metrics["margen_critico"])
-
-        st.markdown("**Ranking de Margen por Producto (Bar Chart)**")
-        margin_df = pd.DataFrame(
-            list(st.session_state.last_report["margin_values"].items()),
-            columns=["Producto", "Margen"]
-        ).set_index("Producto")
-        st.bar_chart(margin_df)
-
-        st.markdown("**Semaforo de Rentabilidad**")
-        semaforo_df = pd.DataFrame(st.session_state.last_report["semaforo"])
-        def _color_estado(val):
-            if val == "Verde":
-                return "background-color: #d4edda"
-            if val == "Amarillo":
-                return "background-color: #fff3cd"
-            if val == "Rojo":
-                return "background-color: #f8d7da"
-            return ""
-        st.dataframe(semaforo_df.style.applymap(_color_estado, subset=["estado"]))
-
-        st.markdown("**Distribucion de Margenes (Histogram)**")
-        st.bar_chart(margin_df["Margen"].value_counts().sort_index())
-
-        st.markdown("**Top vs Bottom (Comparacion rapida)**")
-        top_col, bottom_col = st.columns(2)
-        with top_col:
-            st.markdown("**Top 5 contribucion positiva**")
-            top_df = pd.DataFrame(
-                list(st.session_state.last_report["top_contribucion"].items()),
-                columns=["Producto", "Contribucion"]
-            ).set_index("Producto")
-            st.dataframe(top_df)
-        with bottom_col:
-            st.markdown("**Bottom 5 perdidas**")
-            bottom_df = pd.DataFrame(
-                list(st.session_state.last_report["top_perdida"].items()),
-                columns=["Producto", "Perdida"]
-            ).set_index("Producto")
-            st.dataframe(bottom_df)
-
-        st.caption("SabIA protege tus datos: el analisis se realiza de forma local y solo se usa para esta demo.")
-
-# ===== RIGHT: Action Buttons =====
-with col_buttons:
-    st.subheader("🎯 Analisis")
-
-    st.divider()
-
+# --- MOVED BUTTONS ---
+st.markdown("##### Análisis Rápido")
+btn_col1, btn_col2 = st.columns(2)
+with btn_col1:
     st.markdown('<div class="agent-button-section">', unsafe_allow_html=True)
     st.markdown("**💰 COSTOS**")
     if st.button("📊 Analizar", use_container_width=True, key="costos_btn"):
-        # Si no hay reporte pero hay archivos subidos, genéralo automáticamente
+        # Si no hay reporte pero hay archivos subi      genéralo automáticamente
         if not st.session_state.last_report and st.session_state.uploaded_files:
             filenames = st.session_state.uploaded_files
             
@@ -700,143 +1268,149 @@ with col_buttons:
                     report = SIM_REPORTS[business]
                     st.session_state.last_report = report
                     st.session_state.current_business = business
-        
-        # Ahora mostrar el reporte de costos
-        if st.session_state.last_report and st.session_state.get("current_business") == "mecanico":
-            report = st.session_state.last_report
-            
-            # Título y resumen ejecutivo
-            st.markdown("**📋 Resumen Ejecutivo**")
-            st.write(report.get("executive_report", ""))
-            
-            # Métricas clave
-            st.markdown("\n**📊 Métricas Clave**")
-            metrics = report.get("metrics", {})
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Servicios Analizados", metrics.get('servicios_analizados', 0))
-            with col2:
-                st.metric("Repuestos Críticos", metrics.get('repuestos_criticos', 0))
-            with col3:
-                st.metric("Margen Promedio", f"{metrics.get('margen_promedio', 0):.1f}%")
-            
-            # === GRÁFICOS ===
-            st.markdown("\n**📈 Visualizaciones**")
-            
-            # 1️⃣ Bar Chart - Top repuestos por impacto
-            st.markdown("**1️⃣ Top Repuestos (Mayor Impacto)**")
-            top_repuestos = report.get("top_repuestos", [])
-            if top_repuestos:
-                df_repuestos = pd.DataFrame([
-                    {"Repuesto": r['nombre'], "Impacto ($)": r['monto'], "Variación (%)": r['variacion']}
-                    for r in top_repuestos
-                ])
                 
-                fig_bar = px.bar(
-                    df_repuestos, 
-                    x="Repuesto", 
-                    y="Impacto ($)",
-                    color="Variación (%)",
-                    text="Impacto ($)",
-                    color_continuous_scale="RdYlGn_r",
-                    title="¿Qué me está encareciendo más?"
-                )
-                fig_bar.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
-                st.plotly_chart(fig_bar, use_container_width=True)
-            
-            # 2️⃣ Bar Chart - Gastos indirectos (ranking)
-            st.markdown("**2️⃣ Gastos Indirectos (Ranking)**")
-            gastos = report.get("gastos_indirectos", [])
-            if gastos:
-                df_gastos = pd.DataFrame([
-                    {"Gasto": g['nombre'], "Monto": g['monto']}
-                    for g in gastos
-                ]).sort_values("Monto", ascending=True)
-                
-                fig_gastos_bar = px.bar(
-                    df_gastos,
-                    x="Monto",
-                    y="Gasto",
-                    orientation="h",
-                    text="Monto",
-                    title="Gastos Indirectos Mensuales",
-                    color="Monto",
-                    color_continuous_scale="Blues"
-                )
-                fig_gastos_bar.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
-                st.plotly_chart(fig_gastos_bar, use_container_width=True)
-            
-            # 3️⃣ Drill-down por servicio
-            st.markdown("**3️⃣ Análisis Detallado de Servicios**")
-            servicios = report.get("servicios_sensibles", {})
-            servicio_names = list(servicios.keys())
-            
-            if servicio_names:
-                selected_servicio = st.selectbox("Selecciona un servicio:", servicio_names, key="servicio_select")
-                
-                if selected_servicio:
-                    servicio_data = servicios[selected_servicio]
+                # Ahora mostrar el reporte de costos
+                if st.session_state.last_report and st.session_state.get("current_business") == "mecanico":
+                    report = st.session_state.last_report
                     
-                    # Mostrar desglose en dos columnas
-                    col1, col2 = st.columns(2)
+                    # Título y resumen ejecutivo
+                    st.markdown("**📋 Resumen Ejecutivo**")
+                    st.write(report.get("executive_report", ""))
                     
-                    with col1:
-                        st.subheader("📊 Desglose de Costos")
-                        df_drivers = pd.DataFrame([
-                            {"Concepto": d['nombre'], "Costo ($)": d['monto']}
-                            for d in servicio_data["drivers"]
+                    # Métricas clave
+                    st.markdown("\n**📊 Métricas Clave**")
+                    metrics = report.get("metrics", {})
+                    m_col1, m_col2, m_col3 = st.columns(3)
+                    with m_col1:
+                        st.metric("Servicios Analizados", metrics.get('servicios_analizados', 0))
+                        st.caption("Cantidad de servicios evaluados en el análisis.")
+                    with m_col2:
+                        st.metric("Repuestos Críticos", metrics.get('repuestos_criticos', 0))
+                        st.caption("Los insumos que más impactan tus costos totales.")
+                    with m_col3:
+                        st.metric("Margen Promedio", f"{metrics.get('margen_promedio', 0):.1f}%")
+                        st.caption("El porcentaje de ganancia promedio de tus servicios.")
+    
+                    # === GRÁFICOS ===
+                    st.markdown("\n**📈 Visualizaciones**")
+                    
+                    # 1️⃣ Bar Chart - Top repuestos por impacto
+                    st.markdown("**1️⃣ Top Repuestos (Mayor Impacto)**")
+                    top_repuestos = report.get("top_repuestos", [])
+                    if top_repuestos:
+                        df_repuestos = pd.DataFrame([
+                            {"Repuesto": r['nombre'], "Impacto ($)": r['monto'], "Variación (%)": r['variacion']}
+                            for r in top_repuestos
                         ])
                         
-                        # Agregar porcentaje
-                        total = servicio_data["costo_total"]
-                        df_drivers["% del Costo"] = (df_drivers["Costo ($)"] / total * 100).round(1)
+                        fig_bar = px.bar(
+                            df_repuestos, 
+                            x="Repuesto", 
+                            y="Impacto ($)",
+                            color="Variación (%)",
+                            text="Impacto ($)",
+                            color_continuous_scale=["#E76F51", "#F4A261", "#2A9D8F"],
+                            title="¿Qué me está encareciendo más?"
+                        )
+                        fig_bar.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+                        style_plotly(fig_bar)
+                        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": True})
+                    
+                    # 2️⃣ Bar Chart - Gastos indirectos (ranking)
+                    st.markdown("**2️⃣ Gastos Indirectos (Ranking)**")
+                    gastos = report.get("gastos_indirectos", [])
+                    if gastos:
+                        df_gastos = pd.DataFrame([
+                            {"Gasto": g['nombre'], "Monto": g['monto']}
+                            for g in gastos
+                        ]).sort_values("Monto", ascending=True)
                         
-                        st.dataframe(df_drivers, use_container_width=True, hide_index=True)
+                        fig_gastos_bar = px.bar(
+                            df_gastos,
+                            x="Monto",
+                            y="Gasto",
+                            orientation="h",
+                            text="Monto",
+                            title="Gastos Indirectos Mensuales",
+                            color="Monto",
+                            color_continuous_scale=["#B8E1FF", "#80B1D3", "#5A8FB3", "#1D4ED8"]
+                        )
+                        fig_gastos_bar.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+                        fig_gastos_bar.update_layout(xaxis_title="Monto ($)")
+                        style_plotly(fig_gastos_bar)
+                        st.plotly_chart(fig_gastos_bar, use_container_width=True, config={"displayModeBar": True})
+                    
+                    # 3️⃣ Drill-down por servicio
+                    st.markdown("**3️⃣ Análisis Detallado de Servicios**")
+                    servicios = report.get("servicios_sensibles", {})
+                    servicio_names = list(servicios.keys())
+                    
+                    if servicio_names:
+                        selected_servicio = st.selectbox("Selecciona un servicio:", servicio_names, key="servicio_select")
                         
-                        # Totales
-                        st.divider()
-                        st.write(f"**Costo Total: ${servicio_data['costo_total']:,.0f}**")
-                        st.write(f"**Precio Cobrado: ${servicio_data['precio_cobrado']:,.0f}**")
-                        
-                        # Margen con color
-                        margen = servicio_data['margen']
-                        margen_color = "🔴" if margen <= 5 else "🟡" if margen <= 15 else "🟢"
-                        st.write(f"**Margen: {margen_color} {margen:.1f}%** ({servicio_data['margen_estado']})")
+                        if selected_servicio:
+                            servicio_data = servicios[selected_servicio]
+                            
+                            # Mostrar desglose en dos columnas
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.subheader("📊 Desglose de Costos")
+                                df_drivers = pd.DataFrame([
+                                    {"Concepto": d['nombre'], "Costo ($)": d['monto']}
+                                    for d in servicio_data["drivers"]
+                                ])
+                                
+                                # Agregar porcentaje
+                                total = servicio_data["costo_total"]
+                                df_drivers["% del Costo"] = (df_drivers["Costo ($)"] / total * 100).round(1)
+                                
+                                st.dataframe(df_drivers, use_container_width=True, hide_index=True)
+                                
+                                # Totales
+                                st.divider()
+                                st.write(f"**Costo Total: ${servicio_data['costo_total']:,.0f}**")
+                                st.write(f"**Precio Cobrado: ${servicio_data['precio_cobrado']:,.0f}**")
+                                
+                                # Margen con color
+                                margen = servicio_data['margen']
+                                margen_color = "🔴" if margen <= 5 else "🟡" if margen <= 15 else "🟢"
+                                st.write(f"**Margen: {margen_color} {margen:.1f}%** ({servicio_data['margen_estado']})")
+                            
+                            with col2:
+                                st.subheader("📈 Distribución Visual")
+                                fig_servicio_pie = px.pie(
+                                    df_drivers,
+                                    names="Concepto",
+                                    values="Costo ($)",
+                                    title=f"Composición - {selected_servicio}",
+                                    color_discrete_sequence=["#2A9D8F", "#8ECAE6", "#F4A261", "#E76F51", "#667eea"]
+                                )
+                                style_plotly(fig_servicio_pie)
+                                st.plotly_chart(fig_servicio_pie, use_container_width=True, config={"displayModeBar": True})
+                    
+                    # 4️⃣ Indicador de sensibilidad (Pro)
+                    st.markdown("**4️⃣ Indicador de Sensibilidad**")
+                    sensibilidad = report.get("sensibilidad", {})
+                    
+                    escenario = sensibilidad.get("escenario", "")
+                    impacto = sensibilidad.get("impacto", "")
+                    recomendaciones = sensibilidad.get("recomendaciones", [])
+                    
+                    col1, col2 = st.columns([1.5, 1])
+                    
+                    with col1:
+                        st.warning(f"⚠️ **{escenario}**\n\n{impacto}")
                     
                     with col2:
-                        st.subheader("📈 Distribución Visual")
-                        fig_servicio_pie = px.pie(
-                            df_drivers,
-                            names="Concepto",
-                            values="Costo ($)",
-                            title=f"Composición - {selected_servicio}"
-                        )
-                        st.plotly_chart(fig_servicio_pie, use_container_width=True)
-            
-            # 4️⃣ Indicador de sensibilidad (Pro)
-            st.markdown("**4️⃣ Indicador de Sensibilidad**")
-            sensibilidad = report.get("sensibilidad", {})
-            
-            escenario = sensibilidad.get("escenario", "")
-            impacto = sensibilidad.get("impacto", "")
-            recomendaciones = sensibilidad.get("recomendaciones", [])
-            
-            col1, col2 = st.columns([1.5, 1])
-            
-            with col1:
-                st.warning(f"⚠️ **{escenario}**\n\n{impacto}")
-            
-            with col2:
-                st.info("**Recomendaciones:**")
-                for rec in recomendaciones:
-                    st.write(f"• {rec}")
-        else:
-            st.info("📌 Sube 2 archivos CSV de mecanico y haz clic para analizar costos")
-    st.markdown('</div>', unsafe_allow_html=True)
+                        st.info("**Recomendaciones:**")
+                        for rec in recomendaciones:
+                            st.write(f"• {rec}")
+                else:
+                    st.info("📌 Sube 2 archivos CSV de mecanico y haz clic para analizar costos")    
+                    st.markdown('</div>', unsafe_allow_html=True)
 
-
-    st.divider()
-
+with btn_col2:
     st.markdown('<div class="agent-button-section">', unsafe_allow_html=True)
     st.markdown("**💡 ESTRATEGIA**")
     if st.button("🚨 Analizar", use_container_width=True, key="estrategia_btn"):
@@ -844,19 +1418,14 @@ with col_buttons:
         if not st.session_state.last_report and st.session_state.uploaded_files:
             filenames = st.session_state.uploaded_files
             
-            # Detectar panadería
             has_productos = any("producto" in name.lower() for name in filenames)
             has_tiempos = any("tiempo" in name.lower() for name in filenames)
-            
-            # Detectar marketing (cualquier combinación con "marketing")
             has_marketing = any("marketing" in name.lower() for name in filenames)
             
-            # Validar que tenga los archivos correctos
             valid_panaderia = has_productos and has_tiempos
             valid_marketing = has_marketing and len(filenames) >= 2
             
             if valid_panaderia or valid_marketing:
-                # Generar reporte automáticamente
                 business = detect_business(filenames)
                 report = SIM_REPORTS[business]
                 st.session_state.last_report = report
@@ -876,16 +1445,16 @@ with col_buttons:
             kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
             with kpi_col1:
                 st.markdown(f'<div class="kpi-counter">🔴 {negativos}</div>', unsafe_allow_html=True)
-                st.caption("Negativos")
+                st.caption("Servicios que generan pérdidas.")
             with kpi_col2:
                 st.markdown(f'<div class="kpi-counter">🟡 {criticos}</div>', unsafe_allow_html=True)
-                st.caption("Críticos")
+                st.caption("Servicios con ganancia en riesgo.")
             with kpi_col3:
                 st.markdown(f'<div class="kpi-counter">⏱ {esfuerzo}</div>', unsafe_allow_html=True)
-                st.caption("Alto esfuerzo")
+                st.caption("Alto esfuerzo, bajo retorno.")
             with kpi_col4:
                 st.markdown(f'<div class="kpi-counter">🟠 {desactualizados}</div>', unsafe_allow_html=True)
-                st.caption("Desactualizados")
+                st.caption("Precios desactualizados.")
             
             st.divider()
             
@@ -935,8 +1504,212 @@ with col_buttons:
             if not filtered_alerts:
                 st.info("No hay alertas que coincidan con los filtros seleccionados.")
         else:
-            st.markdown('<div class="data-box">', unsafe_allow_html=True)
-            st.markdown("**🔔 Alertas Criticas:**")
             st.info("Sube 2 archivos CSV para generar el análisis de alertas.")
-            st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
+# --- END MOVED BUTTONS ---
+
+st.divider()
+
+user_input = st.chat_input("Escribe tu pregunta...")
+if user_input:
+    st.session_state.chat_history.append({"role": "user", "content": user_input})
+    st.chat_message("user").write(user_input)
+
+    filenames = st.session_state.uploaded_files
+    
+    # Detectar panadería
+    has_productos = any("producto" in name.lower() for name in filenames)
+    has_tiempos = any("tiempo" in name.lower() for name in filenames)
+    
+    # Detectar marketing (cualquier combinación con "marketing")
+    has_marketing = any("marketing" in name.lower() for name in filenames)
+    
+    # Validar que tenga los archivos correctos
+    valid_panaderia = has_productos and has_tiempos
+    valid_marketing = has_marketing and len(filenames) >= 2
+    
+    if valid_panaderia or valid_marketing:
+        business = detect_business(filenames)
+        report = SIM_REPORTS[business]
+        st.session_state.last_report = report
+        st.session_state.current_business = business
+
+        respuesta = f"Reporte {business.upper()} generado. ✅"
+        st.session_state.chat_history.append({"role": "assistant", "content": respuesta})
+        st.chat_message("assistant").write(respuesta)
+    else:
+        respuesta = "Necesito 2 archivos: productos+tiempos (panadería) O 2 archivos marketing_* para generar el reporte."
+        st.session_state.chat_history.append({"role": "assistant", "content": respuesta})
+        st.chat_message("assistant").write(respuesta)
+
+if st.session_state.last_report:
+    # This part of the code could be refactored to show different reports
+    # based on which button was clicked, but for now it shows the main one.
+    st.subheader("Reporte ejecutivo")
+    current_business = st.session_state.get("current_business")
+
+    if current_business not in ["panaderia", "muebles"]:
+        st.markdown(st.session_state.last_report["executive_report"])
+    elif current_business == "panaderia":
+        st.markdown("**Resumen del análisis**")
+        st.write("Se analizaron 30 productos del catálogo para identificar rentabilidad y riesgos de margen por producto.")
+    elif current_business == "muebles":
+        st.markdown("**Resumen del análisis**")
+        st.write("Se evaluaron productos por tiempo de producción y margen real para detectar eficiencia, esfuerzo y riesgo de pérdida.")
+
+    if current_business == "panaderia":
+        st.markdown('<p class="table-section-title">Productos más rentables (Top 5)</p>', unsafe_allow_html=True)
+        tabla_top = pd.DataFrame([
+            {"Ranking": 1, "Producto": "Producto 30", "Precio": "$2500", "Margen estimado": "Alto", "Estado": "Priorizar"},
+            {"Ranking": 2, "Producto": "Producto 29", "Precio": "$2450", "Margen estimado": "Alto", "Estado": "Priorizar"},
+            {"Ranking": 3, "Producto": "Producto 28", "Precio": "$2400", "Margen estimado": "Alto", "Estado": "Priorizar"},
+            {"Ranking": 4, "Producto": "Producto 27", "Precio": "$2350", "Margen estimado": "Medio/Alto", "Estado": "Mantener"},
+            {"Ranking": 5, "Producto": "Producto 26", "Precio": "$2300", "Margen estimado": "Medio/Alto", "Estado": "Mantener"},
+        ])
+        render_sabi_table(tabla_top, "sabi-table-top5")
+        st.info("Conclusión: estos productos aportan el mayor margen unitario y deben priorizarse en la estrategia comercial y de promoción.")
+
+        st.markdown('<p class="table-section-title">Productos con riesgo (Bottom 5)</p>', unsafe_allow_html=True)
+        tabla_riesgo = pd.DataFrame([
+            {"Producto": "Producto 1", "Precio": "$1050", "Margen estimado": "Bajo", "Riesgo": "Revisar"},
+            {"Producto": "Producto 2", "Precio": "$1100", "Margen estimado": "Bajo", "Riesgo": "Revisar"},
+            {"Producto": "Producto 3", "Precio": "$1150", "Margen estimado": "Bajo", "Riesgo": "Revisar"},
+            {"Producto": "Producto 4", "Precio": "$1200", "Margen estimado": "Crítico", "Riesgo": "Ajustar"},
+            {"Producto": "Producto 5", "Precio": "$1250", "Margen estimado": "Crítico", "Riesgo": "Ajustar"},
+        ])
+        render_sabi_table(tabla_riesgo)
+        st.info("Conclusión: estos productos presentan margen bajo o crítico; conviene ajustar precio, reducir costo o reevaluar su continuidad.")
+
+    if current_business == "muebles":
+        st.markdown('<p class="table-section-title">Productos eficientes</p>', unsafe_allow_html=True)
+        tabla_eficientes = pd.DataFrame([
+            {"Producto": "Producto 28", "Tiempo (min)": 30, "Margen %": "45%", "Estado": "Eficiente"},
+            {"Producto": "Producto 27", "Tiempo (min)": 28, "Margen %": "42%", "Estado": "Eficiente"},
+        ])
+        render_sabi_table(tabla_eficientes, "sabi-table-muebles")
+        st.info("Conclusión: estos productos combinan bajo tiempo y buen margen; son candidatos para priorizar ventas y promoción.")
+
+        st.markdown('<p class="table-section-title">Alto esfuerzo y bajo retorno</p>', unsafe_allow_html=True)
+        tabla_ineficientes = pd.DataFrame([
+            {"Producto": "Producto 5", "Tiempo (min)": 120, "Margen %": "8%", "Problema": "Mucho tiempo, poco retorno"},
+            {"Producto": "Producto 3", "Tiempo (min)": 110, "Margen %": "6%", "Problema": "Ineficiente"},
+        ])
+        render_sabi_table(tabla_ineficientes, "sabi-table-muebles")
+        st.info("Conclusión: estos productos consumen mucha capacidad productiva con baja rentabilidad; requieren ajuste de precio u optimización operativa.")
+
+        st.markdown('<p class="table-section-title">Productos con margen negativo</p>', unsafe_allow_html=True)
+        tabla_perdida = pd.DataFrame([
+            {"Producto": "Producto 2", "Tiempo (min)": 90, "Margen": "-12%", "Estado": "Pérdida"},
+        ])
+        render_sabi_table(tabla_perdida, "sabi-table-muebles")
+        st.info("Conclusión: cada venta de este producto genera pérdida y además ocupa tiempo que podría destinarse a productos rentables.")
+
+    if current_business != "mecanico":
+        metrics = st.session_state.last_report["metrics"]
+        st.markdown(
+            f"""
+            <div class=\"summary-kpi-grid\">
+                <div class=\"summary-kpi-card total\">
+                    <div class=\"summary-kpi-title\">Total de productos</div>
+                    <div class=\"summary-kpi-value\">{metrics['total_productos']}</div>
+                    <div class=\"summary-kpi-desc\">Cantidad total de productos o servicios analizados.</div>
+                </div>
+                <div class=\"summary-kpi-card negativo\">
+                    <div class=\"summary-kpi-title\">Margen negativo</div>
+                    <div class=\"summary-kpi-value\">{metrics['margen_negativo']}</div>
+                    <div class=\"summary-kpi-desc\">Productos que cuestan más de lo que valen (generan pérdida).</div>
+                </div>
+                <div class=\"summary-kpi-card critico\">
+                    <div class=\"summary-kpi-title\">Margen crítico</div>
+                    <div class=\"summary-kpi-value\">{metrics['margen_critico']}</div>
+                    <div class=\"summary-kpi-desc\">Productos con una ganancia muy baja, en riesgo de generar pérdidas.</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        margin_values = st.session_state.last_report.get("margin_values")
+        if margin_values:
+            st.markdown("**Ranking de ganancia por producto**")
+            st.caption("Muestra la ganancia neta (precio de venta - costos) que deja cada producto. Te permite ver rápidamente cuáles son tus productos estrella y cuáles no son rentables.")
+            margin_df = pd.DataFrame(
+                list(margin_values.items()),
+                columns=["Producto", "Ganancia ($)"]
+            ).set_index("Producto")
+            margin_chart_df = margin_df.reset_index()
+            margin_chart_df["Estado"] = margin_chart_df["Ganancia ($)"].apply(
+                lambda value: "Ganancia" if value >= 0 else "Pérdida"
+            )
+            fig_margin = px.bar(
+                margin_chart_df,
+                x="Producto",
+                y="Ganancia ($)",
+                color="Estado",
+                color_discrete_map={
+                    "Ganancia": CHART_COLORS["positive"],
+                    "Pérdida": CHART_COLORS["negative"],
+                },
+                title="Ganancia por producto",
+            )
+            fig_margin.update_layout(
+                xaxis_title="Producto",
+                yaxis_title="Ganancia ($)",
+                xaxis=dict(
+                    tickangle=-45,
+                    tickfont=dict(size=10, color="#061326"),
+                    title_font=dict(size=13, color="#061326"),
+                    automargin=True,
+                ),
+                yaxis=dict(
+                    tickfont=dict(size=11, color="#061326"),
+                    title_font=dict(size=13, color="#061326"),
+                    automargin=True,
+                ),
+                title_font=dict(size=16, color="#061326"),
+                legend=dict(font=dict(size=11, color="#061326"), title_font=dict(color="#061326")),
+            )
+            style_plotly(fig_margin)
+            st.plotly_chart(fig_margin, use_container_width=True, config={"displayModeBar": True})
+
+            semaforo = st.session_state.last_report.get("semaforo")
+            if semaforo:
+                st.markdown("**Semáforo de Rentabilidad**")
+                st.caption("Clasifica cada producto según su estado de rentabilidad para priorizar decisiones rápidas.")
+                semaforo_df = pd.DataFrame(semaforo)
+                semaforo_df["estado"] = semaforo_df["estado"].map(
+                    {
+                        "Verde": '<span class="estado-pill estado-verde">Verde</span>',
+                        "Amarillo": '<span class="estado-pill estado-amarillo">Amarillo</span>',
+                        "Rojo": '<span class="estado-pill estado-rojo">Rojo</span>',
+                    }
+                ).fillna(semaforo_df["estado"])
+                render_sabi_table(semaforo_df, "sabi-table-semaforo", escape_html=False)
+
+            st.markdown("**Distribución de ganancias**")
+            st.caption("Muestra cuántos productos caen en cada nivel de ganancia para entender la salud del portafolio.")
+            st.markdown('<div class="dist-ganancias-anchor"></div>', unsafe_allow_html=True)
+            st.bar_chart(margin_df["Ganancia ($)"].value_counts().sort_index(), color="#0377E4")
+
+            top_contribucion = st.session_state.last_report.get("top_contribucion")
+            top_perdida = st.session_state.last_report.get("top_perdida")
+            if top_contribucion and top_perdida:
+                st.markdown("**Top vs bottom (comparación rápida)**")
+                st.caption("Compara de forma directa los productos que más aportan frente a los que más pérdidas generan.")
+                top_col, bottom_col = st.columns(2)
+                with top_col:
+                    st.markdown("**Top 5 de contribución positiva**")
+                    top_df = pd.DataFrame(
+                        list(top_contribucion.items()),
+                        columns=["Producto", "Contribución"]
+                    )
+                    render_sabi_table(top_df, "sabi-table-resumen")
+                with bottom_col:
+                    st.markdown("**Bottom 5 de pérdidas**")
+                    bottom_df = pd.DataFrame(
+                        list(top_perdida.items()),
+                        columns=["Producto", "Pérdida"]
+                    )
+                    render_sabi_table(bottom_df, "sabi-table-resumen")
+    st.caption("SabIA protege tus datos: el análisis se realiza de forma local y solo se usa para esta demo.")
+
