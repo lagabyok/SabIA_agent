@@ -2,9 +2,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-import os
-from pathlib import Path
-import base64
+
 st.set_page_config(page_title="SabIA - Copiloto Inteligente", layout="wide", initial_sidebar_state="collapsed")
 
 # CSS minimalista
@@ -12,7 +10,7 @@ st.markdown("""
     <style>
     body, .stApp {
         font-family: "Segoe UI", Arial, sans-serif;
-        font-size: 20px;
+        font-size: 18px;
     }
     .header-logo {
         font-size: 2.5em;
@@ -59,119 +57,6 @@ st.markdown("""
         background-color: #f0f0f0;
         font-weight: bold;
     }
-    
-    
-      /* Uploader como botón '+' sin drag&drop (Streamlit 1.36) */
-  div[data-testid="stFileUploader"],
-  div[data-testid="stFileUploader"] section {
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  /* en algunos builds, el 'Browse files' queda dentro del section: recortamos todo a 42x42 */
-  div[data-testid="stFileUploader"] section {
-    width: 42px !important;
-    height: 42px !important;
-    overflow: hidden !important;
-  }
-
-  /* fuerza un contenedor pequeño aunque la estructura interna cambie */
-  div[data-testid="stFileUploader"] section > div {
-    position: relative !important;
-    width: 42px !important;
-    height: 42px !important;
-    min-height: 42px !important;
-    border-radius: 10px !important;
-    border: 1px solid rgba(11,31,59,0.25) !important;
-    background: rgba(247,249,252,1) !important;
-    overflow: hidden !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  /* oculta textos/íconos del uploader sin romper el click */
-  div[data-testid="stFileUploader"] svg,
-  div[data-testid="stFileUploader"] p,
-  div[data-testid="stFileUploader"] small,
-  div[data-testid="stFileUploader"] span {
-    display: none !important;
-  }
-
-  /* el botón/label debe ocupar todo el cuadrado y ser clickeable */
-  div[data-testid="stFileUploader"] label,
-  div[data-testid="stFileUploader"] button {
-    position: absolute !important;
-    inset: 0 !important;
-    width: 42px !important;
-    height: 42px !important;
-    min-height: 42px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    background: transparent !important;
-    cursor: pointer !important;
-    color: transparent !important;
-    font-size: 0 !important;
-    z-index: 5 !important;
-  }
-
-  /* si existe un <input type=file>, mantenerlo por accesibilidad pero invisible */
-  div[data-testid="stFileUploader"] input[type="file"] {
-    position: absolute !important;
-    inset: 0 !important;
-    width: 42px !important;
-    height: 42px !important;
-    opacity: 0 !important;
-    cursor: pointer !important;
-    z-index: 6 !important;
-  }
-
-  /* pintar el '+' SOBRE el botón real */
-  div[data-testid="stFileUploader"] button::before,
-  div[data-testid="stFileUploader"] label::before {
-    content: "+";
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    font-weight: 800;
-    color: #0b1f3b;
-    line-height: 1;
-    z-index: 1;
-  }
-
-  /* Ajustes para el input y el botón enviar */
-  div[data-testid="stTextInput"] input {
-    height: 42px !important;
-    border-radius: 12px !important;
-    border: 1px solid rgba(11,31,59,0.20) !important;
-  }
-  button[kind="secondary"], button[kind="primary"] {
-    height: 42px !important;
-    border-radius: 12px !important;
-  }
-  
-  
-  .header-container {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        padding: 10px;
-    }
-    .header-logo-img {
-        width: 180px;
-        height: 180px;
-        object-fit: contain;
-    }
-    .header-title {
-        font-size: 60px;
-        font-weight: bold;
-        margin: 0;
-    }
-    
     </style>
 """, unsafe_allow_html=True)
 
@@ -651,34 +536,11 @@ def detect_business(filenames: list) -> str:
         return "marketing"
     return "panaderia"
 
-def get_image_base64(path):
-    # Safely read and encode the image file
-    try:
-        with open(path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode('utf-8')
-    except FileNotFoundError:
-        # If the file is not found, we'll just not show the image.
-        return None
-
-# Construct the full path to the image
-logo_path = os.path.join(os.path.dirname(__file__), "static", "logo.png")
-logo_base64 = get_image_base64(logo_path)
 
 # Header
 col1, col2 = st.columns([3, 1])
 with col1:
-    # Build the image tag only if the image was successfully loaded
-    image_html = ""
-    if logo_base64:
-        image_html = f'<img src="data:image/png;base64,{logo_base64}" class="header-logo-img">'
-    
-    # Use an f-string to dynamically insert the image tag into the markdown
-    st.markdown(f"""
-    <div class="header-container">
-    <span class="header-title">🤖</span>
-    {image_html}
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="header-logo">🤖 SabIA</div>', unsafe_allow_html=True)
     st.markdown('<div class="header-subtitle">Copiloto inteligente para tu pyme</div>', unsafe_allow_html=True)
 
 # Inicializar session state
@@ -691,26 +553,29 @@ if "last_report" not in st.session_state:
 if "current_business" not in st.session_state:
     st.session_state.current_business = None
 
-# Main layout - Full Width
-# The two-column layout has been removed to allow the content to span the full width of the page.
-st.subheader("💬 Chat con el Agente")
+# Main layout
+col_chat, col_buttons = st.columns([2, 1], gap="medium")
 
-chat_container = st.container()
-with chat_container:
-    for msg in st.session_state.chat_history:
-        if msg["role"] == "user":
-            st.chat_message("user").write(msg["content"])
-        else:
-            st.chat_message("assistant").write(msg["content"])
+# ===== LEFT: Chat Area =====
+with col_chat:
+    st.subheader("💬 Chat con el Agente")
 
-st.divider()
+    chat_container = st.container()
+    with chat_container:
+        for msg in st.session_state.chat_history:
+            if msg["role"] == "user":
+                st.chat_message("user").write(msg["content"])
+            else:
+                st.chat_message("assistant").write(msg["content"])
 
-col_upload, col_info = st.columns([1, 2])
-with col_upload:
-        st.markdown("**➕ Subir Archivos**")
+    st.divider()
+
+    col_upload, col_info = st.columns([1, 2])
+    with col_upload:
+        st.markdown("**➕ Subir CSV**")
         uploaded_files = st.file_uploader(
-            "Sube tus archivos de Excel o CSV",
-            type=["csv", "xlsx"],
+            "Sube tus archivos",
+            type="csv",
             accept_multiple_files=True,
             label_visibility="collapsed"
         )
@@ -718,21 +583,107 @@ with col_upload:
         if uploaded_files:
             st.session_state.uploaded_files = [f.name for f in uploaded_files]
 
-with col_info:
+    with col_info:
         if st.session_state.uploaded_files:
             st.caption("Archivos cargados: " + ", ".join(st.session_state.uploaded_files))
         else:
-            st.caption("Ej: Sube tus archivos de 'productos' y 'tiempos' (Excel o CSV).")
-st.divider()
+            st.caption("Carga panaderia_productos.csv y panaderia_tiempos.csv (o mueble_...)")
 
-# --- MOVED BUTTONS ---
-st.markdown("##### Análisis Rápido")
-btn_col1, btn_col2 = st.columns(2)
-with btn_col1:
+    st.divider()
+
+    user_input = st.chat_input("Escribe tu pregunta...")
+    if user_input:
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        st.chat_message("user").write(user_input)
+
+        filenames = st.session_state.uploaded_files
+        
+        # Detectar panadería
+        has_productos = any("producto" in name.lower() for name in filenames)
+        has_tiempos = any("tiempo" in name.lower() for name in filenames)
+        
+        # Detectar marketing (cualquier combinación con "marketing")
+        has_marketing = any("marketing" in name.lower() for name in filenames)
+        
+        # Validar que tenga los archivos correctos
+        valid_panaderia = has_productos and has_tiempos
+        valid_marketing = has_marketing and len(filenames) >= 2
+        
+        if valid_panaderia or valid_marketing:
+            business = detect_business(filenames)
+            report = SIM_REPORTS[business]
+            st.session_state.last_report = report
+            st.session_state.current_business = business
+
+            respuesta = f"Reporte {business.upper()} generado. ✅"
+            st.session_state.chat_history.append({"role": "assistant", "content": respuesta})
+            st.chat_message("assistant").write(respuesta)
+        else:
+            respuesta = "Necesito 2 archivos: productos+tiempos (panadería) O 2 archivos marketing_* para generar el reporte."
+            st.session_state.chat_history.append({"role": "assistant", "content": respuesta})
+            st.chat_message("assistant").write(respuesta)
+
+    if st.session_state.last_report:
+        st.subheader("Reporte Ejecutivo")
+        st.markdown(st.session_state.last_report["executive_report"])
+
+        metrics = st.session_state.last_report["metrics"]
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Total productos", metrics["total_productos"])
+        col_b.metric("Margen negativo", metrics["margen_negativo"])
+        col_c.metric("Margen critico", metrics["margen_critico"])
+
+        st.markdown("**Ranking de Margen por Producto (Bar Chart)**")
+        margin_df = pd.DataFrame(
+            list(st.session_state.last_report["margin_values"].items()),
+            columns=["Producto", "Margen"]
+        ).set_index("Producto")
+        st.bar_chart(margin_df)
+
+        st.markdown("**Semaforo de Rentabilidad**")
+        semaforo_df = pd.DataFrame(st.session_state.last_report["semaforo"])
+        def _color_estado(val):
+            if val == "Verde":
+                return "background-color: #d4edda"
+            if val == "Amarillo":
+                return "background-color: #fff3cd"
+            if val == "Rojo":
+                return "background-color: #f8d7da"
+            return ""
+        st.dataframe(semaforo_df.style.applymap(_color_estado, subset=["estado"]))
+
+        st.markdown("**Distribucion de Margenes (Histogram)**")
+        st.bar_chart(margin_df["Margen"].value_counts().sort_index())
+
+        st.markdown("**Top vs Bottom (Comparacion rapida)**")
+        top_col, bottom_col = st.columns(2)
+        with top_col:
+            st.markdown("**Top 5 contribucion positiva**")
+            top_df = pd.DataFrame(
+                list(st.session_state.last_report["top_contribucion"].items()),
+                columns=["Producto", "Contribucion"]
+            ).set_index("Producto")
+            st.dataframe(top_df)
+        with bottom_col:
+            st.markdown("**Bottom 5 perdidas**")
+            bottom_df = pd.DataFrame(
+                list(st.session_state.last_report["top_perdida"].items()),
+                columns=["Producto", "Perdida"]
+            ).set_index("Producto")
+            st.dataframe(bottom_df)
+
+        st.caption("SabIA protege tus datos: el analisis se realiza de forma local y solo se usa para esta demo.")
+
+# ===== RIGHT: Action Buttons =====
+with col_buttons:
+    st.subheader("🎯 Analisis")
+
+    st.divider()
+
     st.markdown('<div class="agent-button-section">', unsafe_allow_html=True)
     st.markdown("**💰 COSTOS**")
     if st.button("📊 Analizar", use_container_width=True, key="costos_btn"):
-        # Si no hay reporte pero hay archivos subi      genéralo automáticamente
+        # Si no hay reporte pero hay archivos subidos, genéralo automáticamente
         if not st.session_state.last_report and st.session_state.uploaded_files:
             filenames = st.session_state.uploaded_files
             
@@ -749,145 +700,143 @@ with btn_col1:
                     report = SIM_REPORTS[business]
                     st.session_state.last_report = report
                     st.session_state.current_business = business
+        
+        # Ahora mostrar el reporte de costos
+        if st.session_state.last_report and st.session_state.get("current_business") == "mecanico":
+            report = st.session_state.last_report
+            
+            # Título y resumen ejecutivo
+            st.markdown("**📋 Resumen Ejecutivo**")
+            st.write(report.get("executive_report", ""))
+            
+            # Métricas clave
+            st.markdown("\n**📊 Métricas Clave**")
+            metrics = report.get("metrics", {})
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Servicios Analizados", metrics.get('servicios_analizados', 0))
+            with col2:
+                st.metric("Repuestos Críticos", metrics.get('repuestos_criticos', 0))
+            with col3:
+                st.metric("Margen Promedio", f"{metrics.get('margen_promedio', 0):.1f}%")
+            
+            # === GRÁFICOS ===
+            st.markdown("\n**📈 Visualizaciones**")
+            
+            # 1️⃣ Bar Chart - Top repuestos por impacto
+            st.markdown("**1️⃣ Top Repuestos (Mayor Impacto)**")
+            top_repuestos = report.get("top_repuestos", [])
+            if top_repuestos:
+                df_repuestos = pd.DataFrame([
+                    {"Repuesto": r['nombre'], "Impacto ($)": r['monto'], "Variación (%)": r['variacion']}
+                    for r in top_repuestos
+                ])
                 
-                # Ahora mostrar el reporte de costos
-                if st.session_state.last_report and st.session_state.get("current_business") == "mecanico":
-                    report = st.session_state.last_report
+                fig_bar = px.bar(
+                    df_repuestos, 
+                    x="Repuesto", 
+                    y="Impacto ($)",
+                    color="Variación (%)",
+                    text="Impacto ($)",
+                    color_continuous_scale="RdYlGn_r",
+                    title="¿Qué me está encareciendo más?"
+                )
+                fig_bar.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+                st.plotly_chart(fig_bar, use_container_width=True)
+            
+            # 2️⃣ Bar Chart - Gastos indirectos (ranking)
+            st.markdown("**2️⃣ Gastos Indirectos (Ranking)**")
+            gastos = report.get("gastos_indirectos", [])
+            if gastos:
+                df_gastos = pd.DataFrame([
+                    {"Gasto": g['nombre'], "Monto": g['monto']}
+                    for g in gastos
+                ]).sort_values("Monto", ascending=True)
+                
+                fig_gastos_bar = px.bar(
+                    df_gastos,
+                    x="Monto",
+                    y="Gasto",
+                    orientation="h",
+                    text="Monto",
+                    title="Gastos Indirectos Mensuales",
+                    color="Monto",
+                    color_continuous_scale="Blues"
+                )
+                fig_gastos_bar.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+                st.plotly_chart(fig_gastos_bar, use_container_width=True)
+            
+            # 3️⃣ Drill-down por servicio
+            st.markdown("**3️⃣ Análisis Detallado de Servicios**")
+            servicios = report.get("servicios_sensibles", {})
+            servicio_names = list(servicios.keys())
+            
+            if servicio_names:
+                selected_servicio = st.selectbox("Selecciona un servicio:", servicio_names, key="servicio_select")
+                
+                if selected_servicio:
+                    servicio_data = servicios[selected_servicio]
                     
-                    # Título y resumen ejecutivo
-                    st.markdown("**📋 Resumen Ejecutivo**")
-                    st.write(report.get("executive_report", ""))
-                    
-                    # Métricas clave
-                    st.markdown("\n**📊 Métricas Clave**")
-                    metrics = report.get("metrics", {})
-                    m_col1, m_col2, m_col3 = st.columns(3)
-                    with m_col1:
-                        st.metric("Servicios Analizados", metrics.get('servicios_analizados', 0))
-                        st.caption("Cantidad de servicios evaluados en el análisis.")
-                    with m_col2:
-                        st.metric("Repuestos Críticos", metrics.get('repuestos_criticos', 0))
-                        st.caption("Los insumos que más impactan tus costos totales.")
-                    with m_col3:
-                        st.metric("Margen Promedio", f"{metrics.get('margen_promedio', 0):.1f}%")
-                        st.caption("El porcentaje de ganancia promedio de tus servicios.")
-    
-                    # === GRÁFICOS ===
-                    st.markdown("\n**📈 Visualizaciones**")
-                    
-                    # 1️⃣ Bar Chart - Top repuestos por impacto
-                    st.markdown("**1️⃣ Top Repuestos (Mayor Impacto)**")
-                    top_repuestos = report.get("top_repuestos", [])
-                    if top_repuestos:
-                        df_repuestos = pd.DataFrame([
-                            {"Repuesto": r['nombre'], "Impacto ($)": r['monto'], "Variación (%)": r['variacion']}
-                            for r in top_repuestos
-                        ])
-                        
-                        fig_bar = px.bar(
-                            df_repuestos, 
-                            x="Repuesto", 
-                            y="Impacto ($)",
-                            color="Variación (%)",
-                            text="Impacto ($)",
-                            color_continuous_scale="RdYlGn_r",
-                            title="¿Qué me está encareciendo más?"
-                        )
-                        fig_bar.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
-                        st.plotly_chart(fig_bar, use_container_width=True)
-                    
-                    # 2️⃣ Bar Chart - Gastos indirectos (ranking)
-                    st.markdown("**2️⃣ Gastos Indirectos (Ranking)**")
-                    gastos = report.get("gastos_indirectos", [])
-                    if gastos:
-                        df_gastos = pd.DataFrame([
-                            {"Gasto": g['nombre'], "Monto": g['monto']}
-                            for g in gastos
-                        ]).sort_values("Monto", ascending=True)
-                        
-                        fig_gastos_bar = px.bar(
-                            df_gastos,
-                            x="Monto",
-                            y="Gasto",
-                            orientation="h",
-                            text="Monto",
-                            title="Gastos Indirectos Mensuales",
-                            color="Monto",
-                            color_continuous_scale="Blues"
-                        )
-                        fig_gastos_bar.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
-                        fig_gastos_bar.update_layout(xaxis_title="Monto ($)")
-                        st.plotly_chart(fig_gastos_bar, use_container_width=True)
-                    
-                    # 3️⃣ Drill-down por servicio
-                    st.markdown("**3️⃣ Análisis Detallado de Servicios**")
-                    servicios = report.get("servicios_sensibles", {})
-                    servicio_names = list(servicios.keys())
-                    
-                    if servicio_names:
-                        selected_servicio = st.selectbox("Selecciona un servicio:", servicio_names, key="servicio_select")
-                        
-                        if selected_servicio:
-                            servicio_data = servicios[selected_servicio]
-                            
-                            # Mostrar desglose en dos columnas
-                            col1, col2 = st.columns(2)
-                            
-                            with col1:
-                                st.subheader("📊 Desglose de Costos")
-                                df_drivers = pd.DataFrame([
-                                    {"Concepto": d['nombre'], "Costo ($)": d['monto']}
-                                    for d in servicio_data["drivers"]
-                                ])
-                                
-                                # Agregar porcentaje
-                                total = servicio_data["costo_total"]
-                                df_drivers["% del Costo"] = (df_drivers["Costo ($)"] / total * 100).round(1)
-                                
-                                st.dataframe(df_drivers, use_container_width=True, hide_index=True)
-                                
-                                # Totales
-                                st.divider()
-                                st.write(f"**Costo Total: ${servicio_data['costo_total']:,.0f}**")
-                                st.write(f"**Precio Cobrado: ${servicio_data['precio_cobrado']:,.0f}**")
-                                
-                                # Margen con color
-                                margen = servicio_data['margen']
-                                margen_color = "🔴" if margen <= 5 else "🟡" if margen <= 15 else "🟢"
-                                st.write(f"**Margen: {margen_color} {margen:.1f}%** ({servicio_data['margen_estado']})")
-                            
-                            with col2:
-                                st.subheader("📈 Distribución Visual")
-                                fig_servicio_pie = px.pie(
-                                    df_drivers,
-                                    names="Concepto",
-                                    values="Costo ($)",
-                                    title=f"Composición - {selected_servicio}"
-                                )
-                                st.plotly_chart(fig_servicio_pie, use_container_width=True)
-                    
-                    # 4️⃣ Indicador de sensibilidad (Pro)
-                    st.markdown("**4️⃣ Indicador de Sensibilidad**")
-                    sensibilidad = report.get("sensibilidad", {})
-                    
-                    escenario = sensibilidad.get("escenario", "")
-                    impacto = sensibilidad.get("impacto", "")
-                    recomendaciones = sensibilidad.get("recomendaciones", [])
-                    
-                    col1, col2 = st.columns([1.5, 1])
+                    # Mostrar desglose en dos columnas
+                    col1, col2 = st.columns(2)
                     
                     with col1:
-                        st.warning(f"⚠️ **{escenario}**\n\n{impacto}")
+                        st.subheader("📊 Desglose de Costos")
+                        df_drivers = pd.DataFrame([
+                            {"Concepto": d['nombre'], "Costo ($)": d['monto']}
+                            for d in servicio_data["drivers"]
+                        ])
+                        
+                        # Agregar porcentaje
+                        total = servicio_data["costo_total"]
+                        df_drivers["% del Costo"] = (df_drivers["Costo ($)"] / total * 100).round(1)
+                        
+                        st.dataframe(df_drivers, use_container_width=True, hide_index=True)
+                        
+                        # Totales
+                        st.divider()
+                        st.write(f"**Costo Total: ${servicio_data['costo_total']:,.0f}**")
+                        st.write(f"**Precio Cobrado: ${servicio_data['precio_cobrado']:,.0f}**")
+                        
+                        # Margen con color
+                        margen = servicio_data['margen']
+                        margen_color = "🔴" if margen <= 5 else "🟡" if margen <= 15 else "🟢"
+                        st.write(f"**Margen: {margen_color} {margen:.1f}%** ({servicio_data['margen_estado']})")
                     
                     with col2:
-                        st.info("**Recomendaciones:**")
-                        for rec in recomendaciones:
-                            st.write(f"• {rec}")
-                else:
-                    st.info("📌 Sube 2 archivos CSV de mecanico y haz clic para analizar costos")    
-                    st.markdown('</div>', unsafe_allow_html=True)
+                        st.subheader("📈 Distribución Visual")
+                        fig_servicio_pie = px.pie(
+                            df_drivers,
+                            names="Concepto",
+                            values="Costo ($)",
+                            title=f"Composición - {selected_servicio}"
+                        )
+                        st.plotly_chart(fig_servicio_pie, use_container_width=True)
+            
+            # 4️⃣ Indicador de sensibilidad (Pro)
+            st.markdown("**4️⃣ Indicador de Sensibilidad**")
+            sensibilidad = report.get("sensibilidad", {})
+            
+            escenario = sensibilidad.get("escenario", "")
+            impacto = sensibilidad.get("impacto", "")
+            recomendaciones = sensibilidad.get("recomendaciones", [])
+            
+            col1, col2 = st.columns([1.5, 1])
+            
+            with col1:
+                st.warning(f"⚠️ **{escenario}**\n\n{impacto}")
+            
+            with col2:
+                st.info("**Recomendaciones:**")
+                for rec in recomendaciones:
+                    st.write(f"• {rec}")
+        else:
+            st.info("📌 Sube 2 archivos CSV de mecanico y haz clic para analizar costos")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-with btn_col2:
+
+    st.divider()
+
     st.markdown('<div class="agent-button-section">', unsafe_allow_html=True)
     st.markdown("**💡 ESTRATEGIA**")
     if st.button("🚨 Analizar", use_container_width=True, key="estrategia_btn"):
@@ -895,14 +844,19 @@ with btn_col2:
         if not st.session_state.last_report and st.session_state.uploaded_files:
             filenames = st.session_state.uploaded_files
             
+            # Detectar panadería
             has_productos = any("producto" in name.lower() for name in filenames)
             has_tiempos = any("tiempo" in name.lower() for name in filenames)
+            
+            # Detectar marketing (cualquier combinación con "marketing")
             has_marketing = any("marketing" in name.lower() for name in filenames)
             
+            # Validar que tenga los archivos correctos
             valid_panaderia = has_productos and has_tiempos
             valid_marketing = has_marketing and len(filenames) >= 2
             
             if valid_panaderia or valid_marketing:
+                # Generar reporte automáticamente
                 business = detect_business(filenames)
                 report = SIM_REPORTS[business]
                 st.session_state.last_report = report
@@ -922,16 +876,16 @@ with btn_col2:
             kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
             with kpi_col1:
                 st.markdown(f'<div class="kpi-counter">🔴 {negativos}</div>', unsafe_allow_html=True)
-                st.caption("Servicios que generan pérdidas.")
+                st.caption("Negativos")
             with kpi_col2:
                 st.markdown(f'<div class="kpi-counter">🟡 {criticos}</div>', unsafe_allow_html=True)
-                st.caption("Servicios con ganancia en riesgo.")
+                st.caption("Críticos")
             with kpi_col3:
                 st.markdown(f'<div class="kpi-counter">⏱ {esfuerzo}</div>', unsafe_allow_html=True)
-                st.caption("Alto esfuerzo, bajo retorno.")
+                st.caption("Alto esfuerzo")
             with kpi_col4:
                 st.markdown(f'<div class="kpi-counter">🟠 {desactualizados}</div>', unsafe_allow_html=True)
-                st.caption("Precios desactualizados.")
+                st.caption("Desactualizados")
             
             st.divider()
             
@@ -981,69 +935,8 @@ with btn_col2:
             if not filtered_alerts:
                 st.info("No hay alertas que coincidan con los filtros seleccionados.")
         else:
+            st.markdown('<div class="data-box">', unsafe_allow_html=True)
+            st.markdown("**🔔 Alertas Criticas:**")
             st.info("Sube 2 archivos CSV para generar el análisis de alertas.")
+            st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
-# --- END MOVED BUTTONS ---
-
-st.divider()
-
-user_input = st.chat_input("Escribe tu pregunta...")
-if user_input:
-    st.session_state.chat_history.append({"role": "user", "content": user_input})
-    st.chat_message("user").write(user_input)
-
-    filenames = st.session_state.uploaded_files
-    
-    # Detectar panadería
-    has_productos = any("producto" in name.lower() for name in filenames)
-    has_tiempos = any("tiempo" in name.lower() for name in filenames)
-    
-    # Detectar marketing (cualquier combinación con "marketing")
-    has_marketing = any("marketing" in name.lower() for name in filenames)
-    
-    # Validar que tenga los archivos correctos
-    valid_panaderia = has_productos and has_tiempos
-    valid_marketing = has_marketing and len(filenames) >= 2
-    
-    if valid_panaderia or valid_marketing:
-        business = detect_business(filenames)
-        report = SIM_REPORTS[business]
-        st.session_state.last_report = report
-        st.session_state.current_business = business
-
-        respuesta = f"Reporte {business.upper()} generado. ✅"
-        st.session_state.chat_history.append({"role": "assistant", "content": respuesta})
-        st.chat_message("assistant").write(respuesta)
-    else:
-        respuesta = "Necesito 2 archivos: productos+tiempos (panadería) O 2 archivos marketing_* para generar el reporte."
-        st.session_state.chat_history.append({"role": "assistant", "content": respuesta})
-        st.chat_message("assistant").write(respuesta)
-
-if st.session_state.last_report:
-    # This part of the code could be refactored to show different reports
-    # based on which button was clicked, but for now it shows the main one.
-    st.subheader("Reporte Ejecutivo")
-    st.markdown(st.session_state.last_report["executive_report"])
-
-    if st.session_state.get("current_business") != "mecanico":
-        metrics = st.session_state.last_report["metrics"]
-        col_a, col_b, col_c = st.columns(3)
-        with col_a:
-            st.metric("Total productos", metrics["total_productos"])
-            st.caption("Cantidad total de productos o servicios analizados.")
-        with col_b:
-            st.metric("Margen negativo", metrics["margen_negativo"])
-            st.caption("Productos que cuestan más de lo que valen (generan pérdida).")
-        with col_c:
-            st.metric("Margen critico", metrics["margen_critico"])
-            st.caption("Productos con una ganancia muy baja, en riesgo de generar pérdidas.")
-
-        st.markdown("**Ranking de Ganancia por Producto**")
-        st.caption("Muestra la ganancia neta (precio de venta - costos) que deja cada producto. Te permite ver rápidamente cuáles son tus productos estrella y cuáles no son rentables.")
-        margin_df = pd.DataFrame(
-            list(st.session_state.last_report["margin_values"].items()),
-            columns=["Producto", "Ganancia ($)"]
-        ).set_index("Producto")
-        st.bar_chart(margin_df)    
-    st.caption("SabIA protege tus datos: el analisis se realiza de forma local y solo se usa para esta demo.")
-
