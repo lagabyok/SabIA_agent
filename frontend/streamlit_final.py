@@ -39,7 +39,7 @@ def render_sabi_table(df: pd.DataFrame, table_class: str = "", escape_html: bool
 st.markdown("""
     <style>
     :root {
-        /* ===== Tema de tablas (edita aquí para cambiar estilo global) ===== */
+        /* ===== Tema de tablas ===== */
         --sabi-text: #061326;
         /* Fondo cabecera (primera fila) */
         --table-header-bg: #B8B68F;
@@ -428,7 +428,7 @@ st.markdown("""
     margin: 0 !important;
   }
 
-  /* en algunos builds, el 'Browse files' queda dentro del section: recortamos todo a 42x42 */
+  /* en algunos builds, el 'Browse files' queda dentro del section: recorta todo a 42x42 */
   div[data-testid="stFileUploader"] section {
     width: 42px !important;
     height: 42px !important;
@@ -689,11 +689,6 @@ st.markdown("""
             font-size: 28px;
         }
     }
-            
-    
-
-
-/* (bloque duplicado de bordes removido; ya está definido arriba con mayor especificidad) */
     
     </style>
 """, unsafe_allow_html=True)
