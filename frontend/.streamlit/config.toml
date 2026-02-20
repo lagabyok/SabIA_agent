@@ -8,4 +8,5 @@ primaryColor = "#e67e6b"
 # Color secundario de fondo en azul pizarra profundo
 secondaryBackgroundColor = "#1e2b38"
 # Fuente base moderna
+
 font = "sans serif"
